@@ -34,10 +34,8 @@ describe('Get Api Tests', () => {
     });
   });
 
-  describe('Repo tests', () => {
+  describe('Repo attributes test', () => {
     let foundRepository;
-    let file;
-    let unexpectedMd5;
 
     const repoQueryParameter = {
       q: repository
@@ -59,6 +57,11 @@ describe('Get Api Tests', () => {
 
     it(`should have a repo called ${repository} with some characteristics`, () =>
       expect(foundRepository).to.include(repoExpectedAttributes));
+  });
+
+  describe('Repo Md5 test', () => {
+    let file;
+    let unexpectedMd5;
 
     before(() =>
       agent.get(`github.com/${user}/${repository}/archive/development.zip`)
@@ -73,10 +76,8 @@ describe('Get Api Tests', () => {
       expect(md5(file)).to.not.eql(unexpectedMd5));
   });
 
-  describe('File tests', () => {
+  describe('File get test', () => {
     let queryResponse;
-    let file;
-    let expectedMd5;
 
     const expectedValues = [{
       name: fileName,
@@ -95,6 +96,11 @@ describe('Get Api Tests', () => {
     it(`should have a ${fileName} with some characteristics`, () => {
       expect(queryResponse.body).to.containSubset(expectedValues);
     });
+  });
+
+  describe('File Md5 test', () => {
+    let file;
+    let expectedMd5;
 
     before(() =>
       agent.get(`https://raw.githubusercontent.com/${user}/${repository}/development/${fileName}`)
