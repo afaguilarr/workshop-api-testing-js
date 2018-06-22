@@ -1,4 +1,4 @@
-const agent = require('superagent-promise')(require('superagent'), Promise);
+const fetch = require('isomorphic-fetch');
 const chai = require('chai');
 const chaiSubset = require('chai-subset');
 const statusCode = require('http-status-codes');
@@ -8,14 +8,17 @@ const { expect } = chai;
 
 const apiUrl = 'https://api.github.com';
 
-describe('Delete API tests (WITH SUPERAGENT LIBRARY)', () => {
+describe('Delete API tests (WITH ISOMORPHIC-FETCH LIBRARY)', () => {
   let createdGistResponse;
 
-  function getGistFunction(id) {
-    return agent
-      .get(`${apiUrl}/gists/${id}`)
-      .auth('token', process.env.ACCESS_TOKEN);
-  }
+  const authorizationHeaders = {
+    Authorization: `token ${process.env.ACCESS_TOKEN}`
+  };
+
+  const getOptions = {
+    method: 'GET',
+    headers: authorizationHeaders
+  };
 
   describe('Gist creation post test', () => {
     const gistToCreate = {
@@ -28,13 +31,19 @@ describe('Delete API tests (WITH SUPERAGENT LIBRARY)', () => {
       }
     };
 
+    const postOptions = {
+      method: 'POST',
+      body: JSON.stringify(gistToCreate),
+      headers: authorizationHeaders
+    };
+
     before(() =>
-      agent
-        .post(`${apiUrl}/gists`)
-        .auth('token', process.env.ACCESS_TOKEN)
-        .send(gistToCreate)
+      fetch(`${apiUrl}/gists`, postOptions)
         .then((response) => {
           createdGistResponse = response;
+          return response.json();
+        }).then((body) => {
+          createdGistResponse.body = body;
         }));
 
     it('the gist should be created and contain the specified values', () => {
@@ -47,9 +56,14 @@ describe('Delete API tests (WITH SUPERAGENT LIBRARY)', () => {
   describe('Gist creation get test', () => {
     let searchedGistResponse;
 
-    before(async () => {
-      searchedGistResponse = await getGistFunction(createdGistResponse.body.id);
-    });
+    before(async () =>
+      fetch(`${apiUrl}/gists/${createdGistResponse.body.id}`, getOptions)
+        .then((response) => {
+          searchedGistResponse = response;
+          return response.json();
+        }).then((body) => {
+          searchedGistResponse.body = body;
+        }));
 
     it('the created gist should exist', () => {
       expect(searchedGistResponse.status).to.equal(statusCode.OK);
@@ -61,36 +75,36 @@ describe('Delete API tests (WITH SUPERAGENT LIBRARY)', () => {
   describe('Gist deletion delete test', () => {
     let deletedGistResponse;
 
+    const deleteOptions = {
+      method: 'DELETE',
+      headers: authorizationHeaders
+    };
+
     before(() =>
-      agent
-        .del(`${apiUrl}/gists/${createdGistResponse.body.id}`)
-        .auth('token', process.env.ACCESS_TOKEN)
+      fetch(`${apiUrl}/gists/${createdGistResponse.body.id}`, deleteOptions)
         .then((response) => {
           deletedGistResponse = response;
         }));
 
-    it('The gist deletion should respond with a 204 status (no content)', () => {
+    it('The gist deletion shoud respond with a 204 status (no content)', () => {
       expect(deletedGistResponse.status).to.equal(statusCode.NO_CONTENT);
     });
   });
 
   describe('Gist deletion get test', () => {
     let searchedGistAfterDeleteResponse;
-    let expectedError;
 
     before(async () => {
-      try {
-        searchedGistAfterDeleteResponse = await getGistFunction(createdGistResponse.body.id);
-      } catch (err) {
-        expectedError = await err;
-      }
+      await fetch(`${apiUrl}/gists/${createdGistResponse.body.id}`, getOptions)
+        .then((response) => {
+          searchedGistAfterDeleteResponse = response;
+        });
     });
 
     it(
       'the created and deleted gist should not exist (request should respond with a Not Found error)',
       () => {
-        expect(searchedGistAfterDeleteResponse).to.equal(undefined);
-        expect(expectedError.status).to.eql(statusCode.NOT_FOUND);
+        expect(searchedGistAfterDeleteResponse.status).to.equal(statusCode.NOT_FOUND);
       }
     );
   });
